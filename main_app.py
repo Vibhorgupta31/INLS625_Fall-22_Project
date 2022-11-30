@@ -14,6 +14,11 @@ from PIL import Image
 import pickle as pkl
 import regex as re
 
+# ML libraries
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import SVC
+
 # Setting webpage Layout 
 # st.set_page_config(layout = "wide") 
 
