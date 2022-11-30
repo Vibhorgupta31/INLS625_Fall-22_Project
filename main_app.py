@@ -10,6 +10,10 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from PIL import Image
 
+# Other Libraries
+import pickle as pkl
+import regex as re
+
 # Setting webpage Layout 
 # st.set_page_config(layout = "wide") 
 
@@ -28,7 +32,7 @@ st.markdown("**Project: What's your personality? Let's Find Out..**")
 st.write("*Vibhor Gupta*")
 st.write("*2022-11-20*")
 
-about, eda, dpm = st.tabs(["About", "Data Exploration", "Data Processing and Modelling	"])
+about, eda, dpm, test = st.tabs(["About", "Data Exploration", "Data Processing and Modelling", "Find your personality"])
 
 with about:
 	st.markdown("**The Project**")
@@ -211,3 +215,62 @@ with dpm:
 		""",unsafe_allow_html=True)
 
 	st.markdown("**Note:** The code for the programs is either running on the backend of the website or is available on GitHub")
+
+
+
+	with test:
+		st.markdown("**Note:** The prediction results are based on the ML model, that doesn't perform well on the dataset.The predictions may be not be correct and mostly results in INFP as the personality type.")
+		comment = st.text_area("Enter user comments", value="Enter the user comments here..",)
+		button = st.button("Submit")
+
+		if button:
+			test_df = pd.DataFrame({"posts":[comment]})
+
+			def preprocess_text(df):
+				texts = df['posts'].copy()
+
+				#Remove links 
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'https?:\/\/.*?[\s+]', '', x.replace("|"," ") + " "))
+
+				#Keep the End Of Sentence characters
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'\.', ' EOSTokenDot ', x + " "))
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'\?', ' EOSTokenQuest ', x + " "))
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'!', ' EOSTokenExs ', x + " "))
+
+				#Strip Punctation
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'[\.+]', ".",x))
+
+				#Remove multiple fullstops
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'[^\w\s]','',x))
+
+				#Remove Non-words
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'[^a-zA-Z\s]','',x))
+
+				#Convert posts to lowercase
+				df["posts"] = df["posts"].apply(lambda x: x.lower())
+
+				#Remove multiple letter repeating words
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'([a-z])\1{2,}[\s|\w]*','',x)) 
+
+				#Remove very short or long words
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'(\b\w{0,3})?\b','',x)) 
+				df["posts"] = df["posts"].apply(lambda x: re.sub(r'(\b\w{30,1000})?\b','',x))
+
+				return df	
+
+			prediction_df = preprocess_text(test_df)
+
+			with open("ML/vectorizer.pkl","rb") as fh:
+				vect = pkl.load(fh)
+			with open("ML/label_encoder.pkl","rb") as fh:
+				le = pkl.load(fh)
+			with open("ML/ml_model.pkl","rb") as fh:
+				model = pkl.load(fh)
+			test_data = vect.transform(prediction_df)
+			prediction = model.predict(test_data)
+			personality_type = le.inverse_transform(model.predict(test_data))
+			st.markdown("<h5>Prediction Results </h5>", unsafe_allow_html=True)
+			st.markdown(f"Accoring to the algorithm your personality type is **{personality_type[0]}**.")
+
+	
+
